@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>FPS Game</title>
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+</head>
+<body>
+    <a-scene>
+        <!-- Camera -->
+        <a-camera position="0 1.6 0" wasd-controls look-controls>
+            <a-entity cursor="maxDistance: 100;" position="0 0 -1"></a-entity>
+            <a-entity raycaster="far: 100;" position="0 0 -1"></a-entity>
+        </a-camera>
+
+        <!-- Lighting -->
+        <a-light type="ambient" color="#888"></a-light>
+        <a-light type="directional" color="#eee" intensity="0.8" position="-2 3 4"></a-light>
+
+        <!-- Environment -->
+        <!-- Floor -->
+        <a-box position="0 0 0" rotation="-90 0 0" width="10" depth="10" height="0.1" color="#777"></a-box>
+        <!-- Walls -->
+        <a-box position="-2 1 4" rotation="0 90 0" width="2" depth="2" height="2" color="#333"></a-box>
+        <a-box position="2 1 4" rotation="0 -90 0" width="2" depth="2" height="2" color="#333"></a-box>
+        <a-box position="0 1 6" rotation="0 0 0" width="4" depth="2" height="2" color="#333"></a-box>
+        <a-box position="0 1 -2" rotation="0 0 0" width="4" depth="2" height="2" color="#333"></a-box>
+        <!-- Ceiling -->
+        <a-box position="0 2 0" rotation="-90 0 0" width="10" depth="10" height="0.1" color="#777"></a-box>
+
+        <!-- Enemies -->
+        <a-entity class="enemy" position="-2 1 4" geometry="primitive:sphere" material="color:red" scale="0.5 0.5 0.5">
+            <a-animation attribute="position" dur="2000" to="2 1 4" repeat="indefinite" direction="alternate"></a-animation>
+        </a-entity>
+        <a-entity class="enemy" position="2 1 4" geometry="primitive:sphere" material="color:red" scale="0.5 0.5 0.5">
+            <a-animation attribute="position" dur="2000" to="-2 1 4" repeat="indefinite" direction="alternate"></a-animation>
+        </a-entity>
+
+        <!-- Score Display -->
+        <a-entity position="0 2 0" rotation="0 0 0">
+            <a-text value="Score: 0" align="center" color="#fff" width="2"></a-text>
+        </a-entity>
+
+        <!-- Start Screen -->
+        <a-entity position="0 1 0">
+            <a-plane width="10" height="10" color="#000" opacity="0.8" visible="true" id="start-screen">
+                <a-text value="FPS Game\nAim for the red targets\nUse WASD to move and mouse to look\nClick to shoot\nAvoid the enemies!\nPress Space to start" align="center" color="#fff" width="6"></a-text>
+            </a-plane>
+        </a-entity>
+
+        <!-- Game Over Text -->
+        <a-entity position="0 1 0" rotation="0 0 0">
+            <a-text value="Game Over!\nPress Space to Restart" align="center" color="#f00" width="6" opacity="0" visible="false" id="game-over-text"></a-text>
+        </a-entity>
+    </a-scene>
+
+    <script>
+        let gameover = false;
+        let spawnInterval;
+        let score = 0;
+        const scoreText = document.querySelector('a-text[value^="Score: "]');
+        const gameOverText = document.querySelector('#game-over-text');
+        const enemyPrototype = document.querySelector('.enemy');
+        const scene = document.querySelector('a-scene');
+
+        function startGame() {
+            score = 0;
+            scoreText.setAttribute('value', 'Score: 0');
+            gameOverText.setAttribute('visible', false);
+            gameOverText.setAttribute('opacity', 0);
+            gameover = false;
+            spawnInterval = setInterval(function() {
+                const x = Math.random() * 4 - 2;
+                const z = Math.random() * 4 - 2;
+                spawnEnemy(x + ' 1 ' + z);
+            }, 3000);
+        }
+
+        function spawnEnemy(position) {
+            const clone = enemyPrototype.cloneNode(true);
+            clone.setAttribute('position', position);
+            const animation = clone.querySelector('a-animation');
+            const destX = Math.random() * 4 - 2;
+            const destZ = Math.random() * 4 - 2;
+            animation.setAttribute('to', destX + ' 1 ' + destZ);
+            scene.appendChild(clone);
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const camera = document.querySelector('a-camera');
+            const raycaster = camera.querySelector('a-entity[raycaster]');
+
+            camera.addEventListener('collide', function(event) {
+                const otherEntity = event.detail.target;
+                if (otherEntity.classList.contains('enemy') && !gameover) {
+                    gameover = true;
+                    gameOverText.setAttribute('visible', true);
+                    gameOverText.setAttribute('opacity', 1);
+                    clearInterval(spawnInterval);
+                }
+            });
+
+            raycaster.addEventListener('intersection', function(event) {
+                const intersectedEntity = event.detail.entity;
+                if (intersectedEntity.classList.contains('enemy')) {
+                    score++;
+                    scoreText.setAttribute('value', 'Score: ' + score);
+                    scene.removeChild(intersectedEntity);
+                }
+            });
+
+            document.body.addEventListener('click', function() {
+                raycaster.components.raycaster.fireRay();
+            });
+
+            document.body.addEventListener('keydown', function(event) {
+                if (event.key === ' ') {
+                    const startScreen = document.querySelector('#start-screen');
+                    if (startScreen.getAttribute('visible') === 'true') {
+                        startScreen.setAttribute('visible', false);
+                        startScreen.setAttribute('opacity', 0);
+                        startGame();
+                    } else if (gameover) {
+                        const enemies = document.querySelectorAll('.enemy');
+                        enemies.forEach(function(enemy) {
+                            scene.removeChild(enemy);
+                        });
+                        startGame();
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
